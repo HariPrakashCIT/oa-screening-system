@@ -24,6 +24,7 @@ Run with:
 """
 
 import json
+import hmac
 import logging
 import os
 import sys
@@ -1529,6 +1530,23 @@ def page_settings(patient_id: str):
 def main():
     """Main Streamlit application entrypoint."""
     setup_page()
+    if os.getenv("PUBLIC_DEPLOYMENT", "false").lower() in ("true", "1", "yes"):
+        access_password = os.getenv("PUBLIC_APP_PASSWORD", "")
+        if not access_password:
+            st.error("This deployment is locked until its owner configures PUBLIC_APP_PASSWORD in hosting secrets.")
+            st.stop()
+        if not st.session_state.get("_public_app_authenticated", False):
+            st.title("KINETIX OA — Private Access")
+            with st.form("public_app_access"):
+                entered_password = st.text_input("Access password", type="password")
+                submitted = st.form_submit_button("Continue")
+            if submitted:
+                if hmac.compare_digest(entered_password, access_password):
+                    st.session_state["_public_app_authenticated"] = True
+                    st.rerun()
+                st.error("That password did not match.")
+            st.stop()
+
     page, active_patient = render_sidebar()
 
     if page == "1. Dashboard Overview":
