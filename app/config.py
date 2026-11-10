@@ -18,6 +18,22 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
+# ---------------------------------------------------------------------------
+# 1) Streamlit Cloud secrets  (Settings > Secrets, TOML format)
+#    These are injected via st.secrets and we copy them into os.environ
+#    so every Config class-attribute picks them up automatically.
+# ---------------------------------------------------------------------------
+try:
+    import streamlit as _st
+    if hasattr(_st, "secrets") and len(_st.secrets) > 0:
+        for _key, _val in _st.secrets.items():
+            os.environ.setdefault(str(_key), str(_val))
+except Exception:
+    pass  # Not running inside Streamlit, or no secrets configured
+
+# ---------------------------------------------------------------------------
+# 2) Local .env file (for developer machines)
+# ---------------------------------------------------------------------------
 try:
     from dotenv import load_dotenv
     load_dotenv(_PROJECT_ROOT / ".env")
