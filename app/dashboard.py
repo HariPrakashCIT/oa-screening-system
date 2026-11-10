@@ -376,7 +376,7 @@ def page_patient_overview(patient_id: str):
                         <span class="k-pill k-pill-green">Optimal Stability</span>
                     </div>
                     <p style="margin:0; font-size:0.88rem; color:#E5E5E5; line-height:1.45;">
-                        {anomaly.get('summary_message', 'Today\'s walking cadence, activity volume, and symptom scores align with your established norms.')}
+                        {anomaly.get('summary_message', 'Today’s walking cadence, activity volume, and symptom scores align with your established norms.')}
                     </p>
                 </div>
                 """,
@@ -1405,7 +1405,7 @@ def page_ai_insights(patient_id: str):
             f"""
             <div class="k-alert-baseline">
                 <h4 style="margin:0 0 6px 0; color:#4ADE80;">&#10003; Monitoring Status: Within Personal Baseline</h4>
-                <p style="margin:0; font-size:0.9rem; color:#DDD;">{anomaly.get('summary_message', 'Today\'s measurements align with your established baseline.')}</p>
+                <p style="margin:0; font-size:0.9rem; color:#DDD;">{anomaly.get('summary_message', 'Today’s measurements align with your established baseline.')}</p>
             </div>
             """,
             unsafe_allow_html=True,
