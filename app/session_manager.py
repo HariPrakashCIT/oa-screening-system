@@ -222,9 +222,15 @@ class SessionManager:
         )
         csv_path = dl.csv_path
 
-        # Register Ctrl-C handler so the session closes cleanly
-        original_sigint = signal.getsignal(signal.SIGINT)
-        signal.signal(signal.SIGINT, self._handle_sigint)
+        # Python only allows signal handlers to be installed from the main
+        # thread. Streamlit runs app code in a script worker thread, so the
+        # duration/stop event controls sessions there; preserve Ctrl-C support
+        # for command-line runs on the main thread.
+        can_handle_sigint = threading.current_thread() is threading.main_thread()
+        original_sigint = None
+        if can_handle_sigint:
+            original_sigint = signal.getsignal(signal.SIGINT)
+            signal.signal(signal.SIGINT, self._handle_sigint)
 
         print(f"\n{'='*60}")
         print(f"  SESSION STARTED")
@@ -295,8 +301,9 @@ class SessionManager:
             except Exception:
                 pass
 
-            # Restore original Ctrl-C handler
-            signal.signal(signal.SIGINT, original_sigint)
+            # Restore original Ctrl-C handler when this run installed one.
+            if can_handle_sigint and original_sigint is not None:
+                signal.signal(signal.SIGINT, original_sigint)
 
         end_time = datetime.now(timezone.utc)
         duration = (end_time - start_time).total_seconds()
