@@ -1,0 +1,74 @@
+# ============================================================
+# .gitignore — OA Screening & Patient Monitoring System
+# ============================================================
+
+# ----- Python -----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.Python
+env/
+venv/
+.venv/
+ENV/
+*.pyo
+
+# ----- Environment & Secrets (NEVER commit these) -----
+.env
+.env.local
+.env.*.local
+secrets/
+*.key
+*.pem
+*firebase-key*.json
+*serviceAccountKey*.json
+
+# Keep the environment template
+!.env.example
+
+# ----- Medical & Patient Data Files (Privacy Protection) -----
+data/raw/*.csv
+data/processed/*.csv
+data/demo/*.csv
+data/daily_logs/
+data/medical_reports/
+data/patient_profiles/
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/demo/.gitkeep
+!data/patient_profiles/.gitkeep
+!data/medical_reports/.gitkeep
+
+# ----- Trained ML Models -----
+models/*.pkl
+models/*.joblib
+!models/.gitkeep
+
+# ----- macOS & IDEs -----
+.agents/
+.claude/
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ----- Jupyter & Logs -----
+.ipynb_checkpoints/
+*.ipynb
+*.log
+logs/
+
+# ----- Testing & Coverage -----
+.pytest_cache/
+htmlcov/
+.coverage

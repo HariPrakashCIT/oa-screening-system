@@ -1,0 +1,16 @@
+{
+  "daily_summary": "We noticed a change from your usual baseline today. This could be due to tiredness, different shoes, or joint sensitivity. Keep an eye on how you feel tomorrow.",
+  "activity_analysis": "You recorded 3,500 steps today. Regular walking within comfortable limits supports knee joint mobility.",
+  "nutrition_analysis": "Your daily protein target is 60.0g. Remember to log your meals to track your nutrition.",
+  "gait_analysis": "No recent wearable insole session was completed today.",
+  "symptom_analysis": "Today's reported pain score was 2/10 with 0 minutes of morning stiffness.",
+  "detected_changes": [
+    "Protein Intake G: Intake 0.0g vs target 60.0g (-100.0%)."
+  ],
+  "suggested_follow_up": "If joint stiffness or pain continues to feel higher than normal for several consecutive days, note it down to mention to your doctor.",
+  "limitations": "These insights are based on wearable sensors and self-reported logs. They provide general awareness and are not a clinical diagnosis.",
+  "generator_source": "deterministic_template",
+  "disclaimer": "RESEARCH PROTOTYPE NOTICE: This machine-learning model is experimental and has not been clinically validated. It is designed to explore gait pattern associations and MUST NOT be used for clinical diagnosis or to replace medical evaluation by a licensed healthcare professional.",
+  "patient_id": "pt_full",
+  "generated_at_utc": "2026-11-10T06:55:20.388429+00:00"
+}

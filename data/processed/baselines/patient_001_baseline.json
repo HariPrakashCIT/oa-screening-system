@@ -1,0 +1,128 @@
+{
+  "patient_id": "patient_001",
+  "baseline_status": "provisional",
+  "valid_observation_count": 1,
+  "baseline_start_date": null,
+  "baseline_end_date": null,
+  "gait_baseline": {
+    "heel_peak": {
+      "mean": 785.67,
+      "std": 0.0,
+      "median": 785.67,
+      "mad": 0.0,
+      "count": 1
+    },
+    "midfoot_peak": {
+      "mean": 590.33,
+      "std": 0.0,
+      "median": 590.33,
+      "mad": 0.0,
+      "count": 1
+    },
+    "forefoot_peak": {
+      "mean": 836.0,
+      "std": 0.0,
+      "median": 836.0,
+      "mad": 0.0,
+      "count": 1
+    },
+    "heel_mean": {
+      "mean": 151.75,
+      "std": 0.0,
+      "median": 151.75,
+      "mad": 0.0,
+      "count": 1
+    },
+    "midfoot_mean": {
+      "mean": 146.21,
+      "std": 0.0,
+      "median": 146.21,
+      "mad": 0.0,
+      "count": 1
+    },
+    "forefoot_mean": {
+      "mean": 148.59,
+      "std": 0.0,
+      "median": 148.59,
+      "mad": 0.0,
+      "count": 1
+    },
+    "pressure_variability": {
+      "mean": 222.43,
+      "std": 0.0,
+      "median": 222.43,
+      "mad": 0.0,
+      "count": 1
+    },
+    "acceleration_variability": {
+      "mean": 0.01,
+      "std": 0.0,
+      "median": 0.01,
+      "mad": 0.0,
+      "count": 1
+    },
+    "gyro_variability": {
+      "mean": 0.23,
+      "std": 0.0,
+      "median": 0.23,
+      "mad": 0.0,
+      "count": 1
+    },
+    "stance_duration_seconds": {
+      "mean": 3.7,
+      "std": 0.0,
+      "median": 3.7,
+      "mad": 0.0,
+      "count": 1
+    }
+  },
+  "activity_baseline": {
+    "steps_count": {
+      "mean": 0.0,
+      "std": 0.0,
+      "median": 0.0,
+      "mad": 0.0,
+      "count": 1
+    },
+    "walking_duration_minutes": {
+      "mean": 0.0,
+      "std": 0.0,
+      "median": 0.0,
+      "mad": 0.0,
+      "count": 1
+    }
+  },
+  "symptom_baseline": {
+    "pain_score": {
+      "mean": 0.0,
+      "std": 0.0,
+      "median": 0.0,
+      "mad": 0.0,
+      "count": 1
+    },
+    "stiffness_minutes": {
+      "mean": 0.0,
+      "std": 0.0,
+      "median": 0.0,
+      "mad": 0.0,
+      "count": 1
+    },
+    "fatigue_score": {
+      "mean": 0.0,
+      "std": 0.0,
+      "median": 0.0,
+      "mad": 0.0,
+      "count": 1
+    }
+  },
+  "nutrition_baseline": {
+    "protein_intake_g": {
+      "mean": 20.0,
+      "std": 0.0,
+      "median": 20.0,
+      "mad": 0.0,
+      "count": 1
+    }
+  },
+  "last_updated_utc": "2026-11-10T08:20:01.819453+00:00"
+}
