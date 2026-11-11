@@ -25,6 +25,7 @@ Run with:
 
 import json
 import hmac
+from html import escape as html_escape
 import logging
 import os
 import sys
@@ -69,7 +70,7 @@ from app.session_manager import (
     list_participants,
     next_participant_id,
 )
-from app.ui_theme import apply_theme, create_dark_figure
+from app.ui_theme import apply_theme, create_dark_figure, create_light_figure
 from ml.model_utils import MEDICAL_DISCLAIMER_TEXT
 from ml.predict import find_latest_model, predict
 
@@ -237,308 +238,194 @@ def render_sidebar():
 # ===========================================================================
 
 def page_patient_overview(patient_id: str):
-    """The central command screen: today's KPIs, anomaly banner, analytics charts."""
+    """A clean overview of recent activity, symptoms, and clinical context."""
+    st.markdown('<div class="k-dashboard-shell"></div>', unsafe_allow_html=True)
     render_topbar("Daily Overview", "Monitoring Dashboard", patient_id)
 
-    profile_svc = PatientProfileService()
-    profile = profile_svc.get_profile(patient_id)
-
+    profile = PatientProfileService().get_profile(patient_id)
+    safe_patient_id = html_escape(str(patient_id))
+    safe_display_name = html_escape(str(profile.get("display_name", patient_id)))
+    safe_kl_grade = html_escape(str(profile.get("kl_grade", "Grade 2")))
+    safe_affected_side = html_escape(str(profile.get("affected_side", "Right")))
+    safe_mobility_notes = html_escape(str(profile.get("mobility_limitations", "No mobility notes recorded.")))
     today_str = datetime.now().strftime("%Y-%m-%d")
-    coord = PatientMonitoringCoordinator()
-    log_svc = coord.log_service
-    today_log = log_svc.get_log(patient_id, today_str)
-
-    # Metric calculations
-    steps_count = today_log.steps_count if today_log else 0
-    step_goal = profile.get("daily_step_goal", 5000) or 5000
-    step_pct = min(int((steps_count / step_goal) * 100), 100)
-
-    protein_val = today_log.protein_intake_g if today_log else 0.0
-    protein_goal = profile.get("daily_protein_goal_g", 65.0) or 65.0
-    prot_pct = min(int((protein_val / protein_goal) * 100), 100) if protein_goal > 0 else 0
-
-    pain_val = today_log.pain_score if today_log else 0
-    pain_label = "Controlled" if pain_val <= 3 else ("Moderate" if pain_val <= 6 else "Elevated")
-    pain_pct = int((pain_val / 10.0) * 100)
-
-    exercise_done = bool(today_log.exercise_completed) if today_log else False
-    exercise_text = "Completed" if exercise_done else "Pending"
-    exercise_pct = 100 if exercise_done else 0
-
-    # -----------------------------------------------------------------------
-    # 1. Top KPI Row (4 Fitness-Style Orange Cards)
-    # -----------------------------------------------------------------------
-    c1, c2, c3, c4 = st.columns(4)
-
-    with c1:
-        st.markdown(
-            f"""
-            <div class="k-kpi-card">
-                <div class="k-kpi-label">Today's Step Count</div>
-                <div class="k-kpi-value">{steps_count:,} <span class="k-kpi-unit">steps</span></div>
-                <div class="k-kpi-sub">Target: {step_goal:,} • {step_pct}% reached</div>
-                <div class="k-kpi-bar"><div class="k-kpi-bar-fill" style="width: {step_pct}%;"></div></div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    with c2:
-        st.markdown(
-            f"""
-            <div class="k-kpi-card">
-                <div class="k-kpi-label">Protein Intake</div>
-                <div class="k-kpi-value">{protein_val:.1f} <span class="k-kpi-unit">g</span></div>
-                <div class="k-kpi-sub">Target: {protein_goal:.0f}g • {prot_pct}% achieved</div>
-                <div class="k-kpi-bar"><div class="k-kpi-bar-fill" style="width: {prot_pct}%;"></div></div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    with c3:
-        st.markdown(
-            f"""
-            <div class="k-kpi-card">
-                <div class="k-kpi-label">Knee Pain Level</div>
-                <div class="k-kpi-value">{pain_val} <span class="k-kpi-unit">/ 10</span></div>
-                <div class="k-kpi-sub">Status: {pain_label} (Visual Analog)</div>
-                <div class="k-kpi-bar"><div class="k-kpi-bar-fill" style="width: {pain_pct}%; background: linear-gradient(90deg, #FF8A24 0%, #EF4444 100%);"></div></div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    with c4:
-        st.markdown(
-            f"""
-            <div class="k-kpi-card">
-                <div class="k-kpi-label">Physical Therapy</div>
-                <div class="k-kpi-value">{exercise_text}</div>
-                <div class="k-kpi-sub">Knee Joint Stabilization Regimen</div>
-                <div class="k-kpi-bar"><div class="k-kpi-bar-fill" style="width: {exercise_pct}%;"></div></div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
-
-    # -----------------------------------------------------------------------
-    # 2. Main Content Split (Left: Anomaly & Trends; Right: Baseline & Gait)
-    # -----------------------------------------------------------------------
-    col_left, col_right = st.columns([1.6, 1.0])
-
-    # Run daily monitoring pipeline
-    status_eval = coord.run_daily_monitoring(
+    coordinator = PatientMonitoringCoordinator()
+    log_service = coordinator.log_service
+    today_log = log_service.get_log(patient_id, today_str)
+    status_eval = coordinator.run_daily_monitoring(
         patient_id, today_date_str=today_str, upload_to_firebase=False
     )
+    history_df = log_service.get_history_dataframe(patient_id, limit_days=14)
+
+    steps_count = today_log.steps_count if today_log else 0
+    step_goal = profile.get("daily_step_goal", 5000) or 5000
+    step_pct = min(int(steps_count / step_goal * 100), 100)
+    protein_val = today_log.protein_intake_g if today_log else 0.0
+    protein_goal = profile.get("daily_protein_goal_g", 65.0) or 65.0
+    protein_pct = min(int(protein_val / protein_goal * 100), 100) if protein_goal else 0
+    pain_val = today_log.pain_score if today_log else 0
+    pain_label = "Low" if pain_val <= 3 else ("Moderate" if pain_val <= 6 else "Elevated")
+    exercise_done = bool(today_log.exercise_completed) if today_log else False
+
+    st.markdown(
+        """
+        <div class="k-page-intro">
+            <div class="k-breadcrumb">Dashboard <span>/</span> Overview</div>
+            <p>Track activity, symptoms, and daily progress in one place.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     anomaly = status_eval.get("anomaly_report", {})
+    anomaly_summary = html_escape(str(anomaly.get("summary_message", "Log regular activity and symptoms to build a personal trend.")))
     category = anomaly.get("overall_category", "Within personal baseline")
+    if category == "Change to monitor":
+        alert_class, alert_title, alert_icon = "k-alert-monitor", "Change to monitor", "!"
+    elif category == "Insufficient data":
+        alert_class, alert_title, alert_icon = "k-alert-progress", "Building your baseline", "i"
+    else:
+        alert_class, alert_title, alert_icon = "k-alert-baseline", "Within personal baseline", "✓"
+    st.markdown(
+        f"""
+        <div class="{alert_class} k-dashboard-alert">
+            <span class="k-alert-icon">{alert_icon}</span>
+            <div><strong>{alert_title}</strong><p>{anomaly_summary}</p></div>
+            <span class="k-pill {'k-pill-red' if category == 'Change to monitor' else 'k-pill-green' if category != 'Insufficient data' else 'k-pill-neutral'}">{'Review' if category == 'Change to monitor' else 'Monitoring'}</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    with col_left:
-        # Anomaly Status Banner
-        if category == "Change to monitor":
+    # KPI cards follow the compact three-card rhythm in the supplied dashboard reference.
+    kpi_cols = st.columns(3)
+    metrics = [
+        ("Daily steps", f"{steps_count:,}", "steps", f"Goal {step_goal:,} · {step_pct}% complete", step_pct, "#7462D3"),
+        ("Knee discomfort", str(pain_val), "/ 10", f"{pain_label} today", max(0, 100 - pain_val * 10), "#D98972"),
+        ("Protein today", f"{protein_val:.0f}", "g", f"Goal {protein_goal:.0f}g · {protein_pct}% reached", protein_pct, "#3AA681"),
+    ]
+    for col, (label, value, unit, sub, progress, accent) in zip(kpi_cols, metrics):
+        with col:
             st.markdown(
                 f"""
-                <div class="k-alert-monitor">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                        <strong style="color:#F87171; font-size:1.0rem;">&#9888; Change to Monitor Detected</strong>
-                        <span class="k-pill k-pill-red">Monitoring Flag</span>
-                    </div>
-                    <p style="margin:0; font-size:0.88rem; color:#E5E5E5; line-height:1.45;">
-                        {anomaly.get('summary_message', 'A statistically significant deviation from personal baseline was detected.')}
-                    </p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            if anomaly.get("multi_variable_pattern"):
-                st.warning(f"Associated Pattern: {anomaly['multi_variable_pattern']}")
-        elif category == "Insufficient data":
-            st.markdown(
-                """
-                <div class="k-card" style="padding:14px; border-left:4px solid #FF8A24;">
-                    <strong style="color:#FF8A24;">ℹ️ Baseline In Progress:</strong>
-                    <span style="color:#CCCCCC; font-size:0.88rem;">
-                        Recording initial observations. Log daily activity and complete insole trials to establish your baseline profile.
-                    </span>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-        else:
-            st.markdown(
-                f"""
-                <div class="k-alert-baseline">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                        <strong style="color:#4ADE80; font-size:1.0rem;">&#10003; Within Personal Baseline</strong>
-                        <span class="k-pill k-pill-green">Optimal Stability</span>
-                    </div>
-                    <p style="margin:0; font-size:0.88rem; color:#E5E5E5; line-height:1.45;">
-                        {anomaly.get('summary_message', 'Today’s walking cadence, activity volume, and symptom scores align with your established norms.')}
-                    </p>
+                <div class="k-kpi-card" style="--k-accent:{accent}">
+                    <div class="k-kpi-heading"><span class="k-kpi-label">{label}</span><span class="k-kpi-mark"></span></div>
+                    <div class="k-kpi-value">{value}<span class="k-kpi-unit">{unit}</span></div>
+                    <div class="k-kpi-sub">{sub}</div>
+                    <div class="k-kpi-bar"><div class="k-kpi-bar-fill" style="width:{progress}%;"></div></div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
 
-        # 14-Day Activity & Protein Trends
-        history_df = log_svc.get_history_dataframe(patient_id, limit_days=14)
-
+    chart_col, detail_col = st.columns([1.65, 1], gap="large")
+    with chart_col:
         st.markdown(
-            """
-            <div class="k-card">
-                <div class="k-card-header">
-                    <h3 class="k-card-title">&#128200; 14-Day Physical Activity & Mobility Volume</h3>
-                    <span class="k-pill k-pill-orange">Daily Steps</span>
-                </div>
-            """,
+            '<div class="k-section-heading"><div><h3>Activity trend</h3><p>Daily steps over the last 14 days</p></div><span class="k-range-chip">Last 14 days</span></div>',
             unsafe_allow_html=True,
         )
-
-        if not history_df.empty and "steps_count" in history_df.columns:
-            plot_df = history_df[["date", "steps_count"]].copy()
-            plot_df["date"] = pd.to_datetime(plot_df["date"]).dt.strftime("%b %d")
-            plot_df = plot_df.set_index("date")
-
-            if _MATPLOTLIB_AVAILABLE:
-                fig, ax = create_dark_figure(figsize=(8, 3.2))
-                bars = ax.bar(plot_df.index, plot_df["steps_count"], color="#FF6B00", width=0.55, edgecolor="#FF8A24", linewidth=1.2)
-                ax.axhline(step_goal, color="#666666", linestyle="--", linewidth=1.0, label=f"Goal ({step_goal:,})")
-                ax.set_ylabel("Steps / Day", color="#9E9E9E", fontsize=9)
-                ax.legend(facecolor="#202020", edgecolor="#333333", labelcolor="#FFFFFF", fontsize=8)
-                plt.xticks(rotation=25, ha="right")
-                plt.tight_layout()
-                st.pyplot(fig)
-                plt.close(fig)
+        with st.container(border=True, key="steps_trend_card"):
+            if not history_df.empty and "steps_count" in history_df.columns:
+                step_data = history_df[["date", "steps_count"]].copy()
+                step_data["date"] = pd.to_datetime(step_data["date"]).dt.strftime("%b %d")
+                step_data = step_data.set_index("date")
+                if _MATPLOTLIB_AVAILABLE:
+                    fig, ax = create_light_figure(figsize=(9, 3.2))
+                    ax.plot(step_data.index, step_data["steps_count"], color="#7462D3", marker="o", linewidth=2.4, markersize=4, label="Steps")
+                    ax.fill_between(range(len(step_data)), step_data["steps_count"].to_numpy(), alpha=.10, color="#7462D3")
+                    ax.axhline(step_goal, color="#B3B7C5", linestyle="--", linewidth=1.0, label=f"Daily goal ({step_goal:,})")
+                    ax.set_ylabel("Steps", color="#707587", fontsize=9)
+                    ax.legend(facecolor="#FFFFFF", edgecolor="#E9EAF0", labelcolor="#5F6475", fontsize=8, frameon=False)
+                    plt.xticks(rotation=0, ha="center")
+                    plt.tight_layout()
+                    st.pyplot(fig, use_container_width=True)
+                    plt.close(fig)
+                else:
+                    st.line_chart(step_data)
             else:
-                st.bar_chart(plot_df)
-        else:
-            st.info("No activity records found yet. Log steps in the Physical Activity tab.")
+                st.markdown('<div class="k-empty-state">No activity records yet. Add a daily step count in Physical Activity to start this trend.</div>', unsafe_allow_html=True)
 
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        # Nutrition Trend Chart
-        st.markdown(
-            """
-            <div class="k-card">
-                <div class="k-card-header">
-                    <h3 class="k-card-title">&#129367; Protein Intake vs. Target Consistency</h3>
-                    <span class="k-pill k-pill-orange">Daily Protein (g)</span>
-                </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        if not history_df.empty and "protein_intake_g" in history_df.columns:
-            p_df = history_df[["date", "protein_intake_g"]].copy()
-            p_df["date"] = pd.to_datetime(p_df["date"]).dt.strftime("%b %d")
-            p_df = p_df.set_index("date")
-
-            if _MATPLOTLIB_AVAILABLE:
-                fig, ax = create_dark_figure(figsize=(8, 3.0))
-                ax.plot(p_df.index, p_df["protein_intake_g"], color="#FF6B00", marker="o", linewidth=2.4, markersize=5, label="Intake (g)")
-                ax.axhline(protein_goal, color="#4ADE80", linestyle="--", linewidth=1.0, label=f"Target ({protein_goal:.0f}g)")
-                ax.fill_between(p_df.index, p_df["protein_intake_g"], alpha=0.15, color="#FF6B00")
-                ax.set_ylabel("Grams", color="#9E9E9E", fontsize=9)
-                ax.legend(facecolor="#202020", edgecolor="#333333", labelcolor="#FFFFFF", fontsize=8)
-                plt.xticks(rotation=25, ha="right")
-                plt.tight_layout()
-                st.pyplot(fig)
-                plt.close(fig)
-            else:
-                st.line_chart(p_df)
-        else:
-            st.info("Log meals in the Nutrition Tracking tab to visualize intake.")
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with col_right:
-        # Baseline Profile Status Card
+    with detail_col:
         base = status_eval.get("baseline", {})
-        b_status = base.get("baseline_status", "provisional").title()
-        obs_count = base.get("valid_observation_count", 0)
-
-        st.markdown(
-            f"""
-            <div class="k-card">
-                <div class="k-card-header">
-                    <h3 class="k-card-title">&#9878; Baseline Profile</h3>
-                    <span class="k-pill k-pill-orange">{b_status}</span>
-                </div>
-                <div style="font-size:0.88rem; color:#CCCCCC; line-height:1.6;">
-                    <div>• <strong>Observations:</strong> {obs_count} sessions</div>
-                    <div>• <strong>Stability Metric:</strong> High Confidence</div>
-                    <div>• <strong>Baseline Scope:</strong> Gait Dynamics & Stride Stance</div>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        # Latest Insole Walking Session Card
+        baseline_status = base.get("baseline_status", "provisional").title()
+        observation_count = base.get("valid_observation_count", 0)
         gait_files = sorted(
-            list(config.DATA_RAW_DIR.glob(f"{patient_id}_*.csv"))
-            + list(config.DATA_DEMO_DIR.glob(f"{patient_id}_*.csv")),
-            key=lambda x: x.stat().st_mtime,
+            list(config.DATA_RAW_DIR.glob(f"{patient_id}_*.csv")) + list(config.DATA_DEMO_DIR.glob(f"{patient_id}_*.csv")),
+            key=lambda path: path.stat().st_mtime,
             reverse=True,
         )
-
-        st.markdown(
-            """
-            <div class="k-card">
-                <div class="k-card-header">
-                    <h3 class="k-card-title">&#128099; Wearable Insole Trial</h3>
-                    <span class="k-pill k-pill-green">50 Hz FSR Array</span>
-                </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        if gait_files:
-            latest_f = gait_files[0]
-            rec_date = datetime.fromtimestamp(latest_f.stat().st_mtime).strftime("%b %d, %Y • %H:%M")
-            st.markdown(
-                f"""
-                <div style="font-size:0.88rem; color:#CCCCCC; line-height:1.6;">
-                    <div>• <strong>File:</strong> <code>{latest_f.name}</code></div>
-                    <div>• <strong>Captured:</strong> {rec_date}</div>
-                    <div>• <strong>Sensors:</strong> Heel, Midfoot, Forefoot, MPU6050</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-        else:
-            st.markdown(
-                """
-                <div style="color:#888; font-size:0.85rem;">
-                    No insole gait trials recorded yet.<br>
-                    Go to <strong>Gait Monitoring</strong> to stream or record a session.
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        # Clinical Action Summary
         st.markdown(
             f"""
-            <div class="k-card">
-                <div class="k-card-header">
-                    <h3 class="k-card-title">&#127919; Quick Profile Summary</h3>
-                </div>
-                <div style="font-size:0.85rem; color:#BBB; line-height:1.55;">
-                    <div>• <strong>Diagnosed Joint:</strong> {profile.get('affected_side', 'Right')} Knee</div>
-                    <div>• <strong>Severity:</strong> {profile.get('kl_grade', 'Grade 2 (Mild)')}</div>
-                    <div>• <strong>BMI:</strong> {profile.get('bmi', 26.4)}</div>
-                    <div>• <strong>Mobility Notes:</strong> {profile.get('mobility_limitations', 'Stair descent sensitivity')}</div>
-                </div>
+            <div class="k-section-heading"><div><h3>Patient overview</h3><p>Profile and monitoring status</p></div></div>
+            <div class="k-profile-card">
+                <div class="k-profile-card-top"><div class="k-avatar">{safe_display_name[:1].upper()}</div><div><strong>{safe_display_name}</strong><span>{safe_patient_id}</span></div><span class="k-pill k-pill-orange">{safe_kl_grade}</span></div>
+                <div class="k-profile-grid"><div><span>Affected knee</span><strong>{safe_affected_side}</strong></div><div><span>Baseline</span><strong>{baseline_status}</strong></div><div><span>Sessions</span><strong>{observation_count}</strong></div><div><span>Rehab today</span><strong>{'Done' if exercise_done else 'Pending'}</strong></div></div>
+                <div class="k-profile-note">{safe_mobility_notes}</div>
             </div>
+            <div class="k-gait-status"><span class="k-gait-status-dot"></span><div><strong>Wearable insole</strong><span>{'Latest trial: ' + datetime.fromtimestamp(gait_files[0].stat().st_mtime).strftime('%b %d, %Y') if gait_files else 'No gait trial recorded yet'}</span></div><span class="k-gait-frequency">50 Hz</span></div>
             """,
             unsafe_allow_html=True,
         )
+
+    lower_chart, lower_detail = st.columns([1.25, 1], gap="large")
+    with lower_chart:
+        st.markdown(
+            '<div class="k-section-heading"><div><h3>Nutrition consistency</h3><p>Protein intake compared with daily goal</p></div></div>',
+            unsafe_allow_html=True,
+        )
+        with st.container(border=True, key="nutrition_trend_card"):
+            if not history_df.empty and "protein_intake_g" in history_df.columns:
+                protein_data = history_df[["date", "protein_intake_g"]].copy()
+                protein_data["date"] = pd.to_datetime(protein_data["date"]).dt.strftime("%b %d")
+                protein_data = protein_data.set_index("date")
+                if _MATPLOTLIB_AVAILABLE:
+                    fig, ax = create_light_figure(figsize=(8, 2.7))
+                    ax.plot(protein_data.index, protein_data["protein_intake_g"], color="#3AA681", marker="o", linewidth=2.2, markersize=4, label="Protein")
+                    ax.fill_between(range(len(protein_data)), protein_data["protein_intake_g"].to_numpy(), alpha=.10, color="#3AA681")
+                    ax.axhline(protein_goal, color="#B3B7C5", linestyle="--", linewidth=1.0, label=f"Daily goal ({protein_goal:.0f}g)")
+                    ax.set_ylabel("Grams", color="#707587", fontsize=9)
+                    ax.legend(facecolor="#FFFFFF", edgecolor="#E9EAF0", labelcolor="#5F6475", fontsize=8, frameon=False)
+                    plt.xticks(rotation=0, ha="center")
+                    plt.tight_layout()
+                    st.pyplot(fig, use_container_width=True)
+                    plt.close(fig)
+                else:
+                    st.line_chart(protein_data)
+            else:
+                st.markdown('<div class="k-empty-state">No nutrition records yet. Log meals to see daily protein here.</div>', unsafe_allow_html=True)
+
+    with lower_detail:
+        st.markdown(
+            """
+            <div class="k-section-heading"><div><h3>Care snapshot</h3><p>Useful context for today</p></div></div>
+            <div class="k-care-card">
+                <div class="k-care-line"><span>Exercise plan</span><strong>{exercise}</strong></div>
+                <div class="k-care-line"><span>Body mass index</span><strong>{bmi}</strong></div>
+                <div class="k-care-line"><span>Severity grade</span><strong>{grade}</strong></div>
+            </div>
+            """.format(
+                exercise="Completed" if exercise_done else "Not logged",
+                bmi=html_escape(str(profile.get("bmi", "—"))),
+                grade=safe_kl_grade,
+            ),
+            unsafe_allow_html=True,
+        )
+
+    st.markdown(
+        '<div class="k-section-heading k-recent-heading"><div><h3>Recent monitoring</h3><p>Your latest recorded activity, nutrition, and symptoms</p></div><span class="k-range-chip">Recent records</span></div>',
+        unsafe_allow_html=True,
+    )
+    if not history_df.empty:
+        recent = history_df.copy().sort_values("date", ascending=False).head(7)
+        recent["date"] = pd.to_datetime(recent["date"]).dt.strftime("%b %d, %Y")
+        columns = [column for column in ("date", "steps_count", "protein_intake_g", "pain_score") if column in recent.columns]
+        recent = recent[columns].rename(columns={
+            "date": "Date", "steps_count": "Steps", "protein_intake_g": "Protein (g)", "pain_score": "Pain / 10"
+        })
+        st.dataframe(recent, hide_index=True, use_container_width=True)
+    else:
+        st.markdown('<div class="k-empty-state">There are no daily records to show yet.</div>', unsafe_allow_html=True)
+    st.caption("Research prototype · Monitoring support only; this dashboard does not provide a medical diagnosis.")
 
 
 # ===========================================================================
